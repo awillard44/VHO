@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ohio School Districts - Interactive Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fa;
+            color: #1a1a2e;
+        }
+        /* Header */
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .header h1 {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .header p {
+            font-size: 0.95rem;
+            opacity: 0.85;
+        }
+        /* Main Layout */
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 85px);
+        }
+        /* Map Container */
+        
+        #map {
+            flex: 1;
+            min-height: 500px;
+        }
+        /* Info Panel */
+        
+        .info-panel {
+            width: 380px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            overflow-y: auto;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.05);
+        }
+        
+        .panel-header {
+            background: #f0f4f8;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .panel-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        
+        .panel-content {
+            padding: 1.5rem;
+        }
+        
+        .placeholder-message {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: #666;
+        }
+        
+        .placeholder-message svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.4;
+        }
+        
+        .placeholder-message p {
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        /* District Info Display */
+        
+        .district-info {
+            display: none;
+        }
+        
+        .district-info.active {
+            display: block;
+        }
+        
+        .district-name {
+            font-family: 'Playfair Display', Georgia, serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+        
+        .info-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .info-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        /* Coalition Status Badge */
+        
+        .coalition-status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .coalition-status.member {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .coalition-status.non-member {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: 1px dashed #d1d5db;
+        }
+        
+        .coalition-status .status-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        /* Loading State */
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .loading-text {
+            margin-top: 1rem;
+            color: #666;
+            font-size: 0.95rem;
+        }
+        /* Stats Bar */
+        
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            padding: 1rem 1.5rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+        }
+        /* Responsive */
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .info-panel {
+                width: 100%;
+                height: 300px;
+                border-left: none;
+                border-top: 1px solid #e0e0e0;
+            }
+            #map {
+                height: 50vh;
+            }
+        }
+        /* Custom Leaflet Tooltip */
+        
+        .district-tooltip {
+            background: white;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            padding: 0.75rem 1rem;
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .leaflet-tooltip-left:before,
+        .leaflet-tooltip-right:before {
+            border: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <h1>Ohio School Districts</h1>
+        <p>Interactive map — hover over a district to see details</p>
+    </header>
+
+    <div class="main-container">
+        <div id="map">
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p class="loading-text">Loading 612 school districts...</p>
+                </div>
+            </div>
+        </div>
+
+        <aside class="info-panel">
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalDistricts">612</div>
+                    <div class="stat-label">Districts</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="coalitionCount">300+</div>
+                    <div class="stat-label">In Coalition</div>
+                </div>
+            </div>
+
+            <div class="panel-header">
+                <h2>District Information</h2>
+            </div>
+
+            <div class="panel-content">
+                <div class="placeholder-message" id="placeholderMessage">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                    <p>Hover over a school district on the map to view its information.</p>
+                </div>
+
+                <div class="district-info" id="districtInfo">
+                    <h3 class="district-name" id="districtName">—</h3>
+
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">IRN (District ID)</div>
+                            <div class="info-value" id="districtIRN">—</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">County</div>
+                            <div class="info-value" id="districtCounty">—</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Tax ID</div>
+                            <div class="info-value" id="districtTaxID">—</div>
+                        </div>
+                    </div>
+
+                    <div class="coalition-status non-member" id="coalitionStatus">
+                        <span class="status-label" id="coalitionLabel">Coalition status will appear here</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // ============================================================
+        // DATA SOURCE CONFIGURATION
+        // ============================================================
+        // 
+        // Ohio School District boundary data from the 
+        // Ohio Geographically Referenced Information Program (OGRIP)
+        //
+        // Data Portal (API Explorer): 
+        //   https://ohio-framework-datasets-geohio.hub.arcgis.com/datasets/13c69be53f854a3cb5806a9422da2bf5/api
+        //
+        // API Endpoint (JSON): 
+        //   https://maps.ohio.gov/arcgis/rest/services/Hosted/Ohio_School_Districts_2025/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=json
+        //
+        // API Endpoint (GeoJSON - add f=geojson): 
+        //   https://maps.ohio.gov/arcgis/rest/services/Hosted/Ohio_School_Districts_2025/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson
+        //
+        // Available fields: irn, name, taxid, countycode, SHAPE__Length, SHAPE__Area, globalid
+        //
+        // ============================================================
+
+        // Initialize the map centered on Ohio
+        const map = L.map('map', {
+            zoomControl: true,
+            scrollWheelZoom: true
+        }).setView([40.4173, -82.9071], 7);
+
+        // Add a clean, light basemap
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Style for districts
+        const defaultStyle = {
+            fillColor: '#3b82f6',
+            weight: 1,
+            opacity: 1,
+            color: '#1e40af',
+            fillOpacity: 0.4
+        };
+
+        const hoverStyle = {
+            fillColor: '#1d4ed8',
+            weight: 2,
+            opacity: 1,
+            color: '#1e3a8a',
+            fillOpacity: 0.7
+        };
+
+        const coalitionStyle = {
+            fillColor: '#10b981',
+            weight: 1,
+            opacity: 1,
+            color: '#047857',
+            fillOpacity: 0.5
+        };
+
+        // ============================================================
+        // COALITION MEMBER LIST
+        // ============================================================
+        // TODO: Populate this with the actual list from https://vouchershurtohio.com/districts/
+        // These are sample entries - replace with the full list
+        // Match on district name (case-insensitive partial match)
+        // ============================================================
+        const coalitionMembers = new Set([
+            'AKRON CITY',
+            'TOLEDO CITY',
+            'COLUMBUS CITY',
+            'CLEVELAND MUNICIPAL',
+            'CINCINNATI CITY',
+            'DAYTON CITY',
+            'YOUNGSTOWN CITY',
+            'CANTON CITY',
+            'BEXLEY CITY',
+            'UPPER ARLINGTON CITY',
+            'LAKEWOOD CITY',
+            'SHAKER HEIGHTS CITY',
+            'ATHENS CITY',
+            'BARBERTON CITY',
+            'BEDFORD CITY',
+            'BELLAIRE LOCAL',
+            'BELLEVUE CITY',
+            'BEREA CITY',
+            'BOARDMAN LOCAL',
+            'BOWLING GREEN CITY',
+            'BRECKSVILLE-BROADVIEW HEIGHTS CITY'
+            // Add the remaining ~280 coalition members here...
+        ]);
+
+        // Ohio county codes to names mapping
+        const countyNames = {
+            '1': 'Adams',
+            '2': 'Allen',
+            '3': 'Ashland',
+            '4': 'Ashtabula',
+            '5': 'Athens',
+            '6': 'Auglaize',
+            '7': 'Belmont',
+            '8': 'Brown',
+            '9': 'Butler',
+            '10': 'Carroll',
+            '11': 'Champaign',
+            '12': 'Clark',
+            '13': 'Clermont',
+            '14': 'Clinton',
+            '15': 'Columbiana',
+            '16': 'Coshocton',
+            '17': 'Crawford',
+            '18': 'Cuyahoga',
+            '19': 'Darke',
+            '20': 'Defiance',
+            '21': 'Delaware',
+            '22': 'Erie',
+            '23': 'Fairfield',
+            '24': 'Fayette',
+            '25': 'Franklin',
+            '26': 'Fulton',
+            '27': 'Gallia',
+            '28': 'Geauga',
+            '29': 'Greene',
+            '30': 'Guernsey',
+            '31': 'Hamilton',
+            '32': 'Hancock',
+            '33': 'Hardin',
+            '34': 'Harrison',
+            '35': 'Henry',
+            '36': 'Highland',
+            '37': 'Hocking',
+            '38': 'Holmes',
+            '39': 'Huron',
+            '40': 'Jackson',
+            '41': 'Jefferson',
+            '42': 'Knox',
+            '43': 'Lake',
+            '44': 'Lawrence',
+            '45': 'Licking',
+            '46': 'Logan',
+            '47': 'Lorain',
+            '48': 'Lucas',
+            '49': 'Madison',
+            '50': 'Mahoning',
+            '51': 'Marion',
+            '52': 'Medina',
+            '53': 'Meigs',
+            '54': 'Mercer',
+            '55': 'Miami',
+            '56': 'Monroe',
+            '57': 'Montgomery',
+            '58': 'Morgan',
+            '59': 'Morrow',
+            '60': 'Muskingum',
+            '61': 'Noble',
+            '62': 'Ottawa',
+            '63': 'Paulding',
+            '64': 'Perry',
+            '65': 'Pickaway',
+            '66': 'Pike',
+            '67': 'Portage',
+            '68': 'Preble',
+            '69': 'Putnam',
+            '70': 'Richland',
+            '71': 'Ross',
+            '72': 'Sandusky',
+            '73': 'Scioto',
+            '74': 'Seneca',
+            '75': 'Shelby',
+            '76': 'Stark',
+            '77': 'Summit',
+            '78': 'Trumbull',
+            '79': 'Tuscarawas',
+            '80': 'Union',
+            '81': 'Van Wert',
+            '82': 'Vinton',
+            '83': 'Warren',
+            '84': 'Washington',
+            '85': 'Wayne',
+            '86': 'Williams',
+            '87': 'Wood',
+            '88': 'Wyandot'
+        };
+
+        let geojsonLayer = null;
+        let currentHighlight = null;
+
+        // Function to determine style based on coalition membership
+        function getDistrictStyle(feature) {
+            const name = feature.properties.name || feature.properties.NAME || '';
+            const isMember = Array.from(coalitionMembers).some(member =>
+                name.toUpperCase().includes(member)
+            );
+
+            if (isMember) {
+                return coalitionStyle;
+            }
+            return defaultStyle;
+        }
+
+        // Function to update the info panel
+        function updateInfoPanel(properties) {
+            document.getElementById('placeholderMessage').style.display = 'none';
+            document.getElementById('districtInfo').classList.add('active');
+
+            // Handle both lowercase (API) and uppercase (file) field names
+            const name = properties.name || properties.NAME || 'Unknown District';
+            const irn = properties.irn || properties.IRN || 'N/A';
+            const countyCode = properties.countycode || properties.CountyCode || properties.COUNTYCODE || '';
+            const county = countyNames[countyCode] || `Code: ${countyCode}`;
+            const taxId = properties.taxid || properties.TAXID || 'N/A';
+
+            document.getElementById('districtName').textContent = name;
+            document.getElementById('districtIRN').textContent = irn;
+            document.getElementById('districtCounty').textContent = county;
+            document.getElementById('districtTaxID').textContent = taxId;
+
+            // Check coalition status
+            const isMember = Array.from(coalitionMembers).some(member =>
+                name.toUpperCase().includes(member)
+            );
+
+            const statusEl = document.getElementById('coalitionStatus');
+            const labelEl = document.getElementById('coalitionLabel');
+
+            if (isMember) {
+                statusEl.className = 'coalition-status member';
+                labelEl.textContent = '✓ Vouchers Hurt Ohio Coalition Member';
+            } else {
+                statusEl.className = 'coalition-status non-member';
+                labelEl.textContent = 'Not currently in coalition';
+            }
+        }
+
+        // Function to reset info panel
+        function resetInfoPanel() {
+            document.getElementById('placeholderMessage').style.display = 'block';
+            document.getElementById('districtInfo').classList.remove('active');
+        }
+
+        // Event handlers for each feature
+        function onEachFeature(feature, layer) {
+            const name = feature.properties.name || feature.properties.NAME || 'Unknown';
+
+            // Add tooltip
+            layer.bindTooltip(name, {
+                permanent: false,
+                direction: 'top',
+                className: 'district-tooltip'
+            });
+
+            layer.on({
+                mouseover: function(e) {
+                    const layer = e.target;
+
+                    // Reset previous highlight
+                    if (currentHighlight && currentHighlight !== layer) {
+                        geojsonLayer.resetStyle(currentHighlight);
+                    }
+
+                    layer.setStyle(hoverStyle);
+                    layer.bringToFront();
+                    currentHighlight = layer;
+
+                    updateInfoPanel(feature.properties);
+                },
+                mouseout: function(e) {
+                    // Don't reset on mouseout - keep showing until another district is hovered
+                },
+                click: function(e) {
+                    map.fitBounds(e.target.getBounds());
+                }
+            });
+        }
+
+        // ============================================================
+        // LOAD GEOJSON DATA
+        // ============================================================
+        // Option 1: Local file (recommended for production)
+        const GEOJSON_URL = 'ohio-school-districts.geojson';
+
+        // Option 2: Direct from Ohio API (always up-to-date, but depends on their server)
+        // const GEOJSON_URL = 'https://maps.ohio.gov/arcgis/rest/services/Hosted/Ohio_School_Districts_2025/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
+        // ============================================================
+
+        fetch(GEOJSON_URL)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('GeoJSON file not found. See console for setup instructions.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Hide loading overlay
+                document.getElementById('loadingOverlay').style.display = 'none';
+
+                // Update district count
+                const featureCount = data.features ? data.features.length : 0;
+                document.getElementById('totalDistricts').textContent = featureCount;
+
+                // Add GeoJSON layer
+                geojsonLayer = L.geoJSON(data, {
+                    style: getDistrictStyle,
+                    onEachFeature: onEachFeature
+                }).addTo(map);
+
+                // Fit map to Ohio bounds
+                map.fitBounds(geojsonLayer.getBounds());
+
+                console.log('✅ Loaded', featureCount, 'school districts');
+                if (data.features && data.features[0]) {
+                    console.log('Sample district properties:', data.features[0].properties);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading GeoJSON:', error);
+                document.getElementById('loadingOverlay').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; max-width: 500px;">
+                        <h3 style="color: #dc2626; margin-bottom: 1rem;">GeoJSON File Not Found</h3>
+                        <p style="color: #666; margin-bottom: 1rem;">
+                            To use this map, place your <code>ohio-school-districts.geojson</code> file 
+                            in the same directory as this HTML file.
+                        </p>
+                        <p style="color: #666; font-size: 0.9rem;">
+                            Download from: <a href="https://ohio-framework-datasets-geohio.hub.arcgis.com/datasets/13c69be53f854a3cb5806a9422da2bf5/api" target="_blank">Ohio GeoHIO Portal</a>
+                        </p>
+                    </div>
+                `;
+            });
+
+        // Reset highlight when clicking on map (not on a district)
+        map.on('click', function(e) {
+            if (currentHighlight) {
+                geojsonLayer.resetStyle(currentHighlight);
+                currentHighlight = null;
+                resetInfoPanel();
+            }
+        });
+    </script>
+</body>
+
+</html>
