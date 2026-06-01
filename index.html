@@ -517,6 +517,17 @@
             zoomSnap: 0.5
         }).setView([40.4173, -82.9071], 7.5);
 
+        // Reset when leaving the entire map area
+        map.getContainer().addEventListener('mouseleave', function () {
+            if (currentHighlight && geojsonLayer) {
+                geojsonLayer.resetStyle(currentHighlight);
+                currentHighlight.closeTooltip();
+                currentHighlight = null;
+            }
+            resetInfoPanel();
+            document.getElementById('districtSearch').value = '';
+        });
+
         // Style for districts - VHO Branding Colors
         // Non-coalition: Orange #E13F04
         // Coalition: Blue #04A6E1
@@ -1070,18 +1081,6 @@
                 click: function (e) {
                     map.fitBounds(e.target.getBounds());
                 }
-            });
-            // Reset when leaving the entire map area
-            map.getContainer().addEventListener('mouseleave', function () {
-
-                if (currentHighlight && geojsonLayer) {
-                    geojsonLayer.resetStyle(currentHighlight);
-                    currentHighlight.closeTooltip();
-                    currentHighlight = null;
-                }
-
-                resetInfoPanel();
-                document.getElementById('districtSearch').value = '';
             });
         }
 
