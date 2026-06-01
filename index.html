@@ -1064,11 +1064,24 @@
                     updateInfoPanel(feature.properties);
                 },
                 mouseout: function (e) {
-                    // Don't reset on mouseout - keep showing until another district is hovered
+                    // Reset on mouseout to initial info panel state
                 },
+
                 click: function (e) {
                     map.fitBounds(e.target.getBounds());
                 }
+            });
+            // Reset when leaving the entire map area
+            map.getContainer().addEventListener('mouseleave', function () {
+
+                if (currentHighlight && geojsonLayer) {
+                    geojsonLayer.resetStyle(currentHighlight);
+                    currentHighlight.closeTooltip();
+                    currentHighlight = null;
+                }
+
+                resetInfoPanel();
+                document.getElementById('districtSearch').value = '';
             });
         }
 
@@ -1279,11 +1292,11 @@
                     L.DomEvent.stopPropagation(e);
                     L.DomEvent.preventDefault(e);
 
-                    map.flyTo([40.4173, -82.9071], 
-                    7.5,
-                    {
-                        duration: 1.5
-                    }
+                    map.flyTo([40.4173, -82.9071],
+                        7.5,
+                        {
+                            duration: 1.5
+                        }
                     );
 
                     if (currentHighlight && geojsonLayer) {
