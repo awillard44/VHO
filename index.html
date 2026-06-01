@@ -1279,7 +1279,13 @@
                     L.DomEvent.stopPropagation(e);
                     L.DomEvent.preventDefault(e);
 
-                    map.flyTo([40.4173, -82.9071], 1);
+                    map.flyTo([40.4173, -82.9071], 
+                    7.5,
+                    {
+                        duration: 1.5,
+                        easeLinearity: 0.25
+                    }
+                    );
 
                     if (currentHighlight && geojsonLayer) {
                         geojsonLayer.resetStyle(currentHighlight);
